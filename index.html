@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>micro:bit シリアル時刻同期</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; }
+        #status { margin-top: 20px; color: #666; white-space: pre-line; }
+    </style>
+</head>
+<body>
+
+    <h1>micro:bit シリアル時刻同期</h1>
+    <button id="syncBtn">micro:bitに接続して時刻を同期</button>
+    <div id="status">ステータス: 未接続</div>
+
+    <script>
+        document.getElementById('syncBtn').addEventListener('click', async () => {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = '接続画面を開いています...';
+
+            if (!navigator.serial) {
+                statusDiv.textContent = 'エラー: お使いのブラウザはWeb Serial APIに対応していません。\nChromeまたはEdgeをお使いください。';
+                return;
+            }
+
+            try {
+                // 1. シリアルポートの選択とオープン (micro:bitの標準レートは115200)
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                statusDiv.textContent = '接続完了。データを送信中...';
+
+                // 2. 現在時刻の文字列を作成
+                const now = new Date();
+                const timeString = `${now.getHours()},${now.getMinutes()},${now.getSeconds()},${now.getMonth() + 1},${now.getDate()},${now.getFullYear()}\n`;
+
+                // 3. データを送信
+                const encoder = new TextEncoder();
+                const writer = port.writable.getWriter();
+                await writer.write(encoder.encode(timeString));
+                
+                // 後始末
+                writer.releaseLock();
+                await port.close();
+
+                statusDiv.textContent = `同期完了！\n送信データ: ${timeString.trim()}`;
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.textContent = `エラー: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>
